@@ -12,7 +12,7 @@ UI_LAYER = 100
 _default_manager = None
 
 class Font:
-    def __init__(self, path=None, size=36, color=(255, 255, 255), bold=False, italic=False):
+    def __init__(self, path=None, size=36, color=(128, 128, 128), bold=False, italic=False):
         self.path = path
         self.font_size = size
         try:
@@ -940,7 +940,7 @@ class ButtonGroup(GameSprite):
     def create(self, text="", command=None, pos:list=None, background=None, manager=None, font=None, layer=None, animation=None):
         if not background:
             background = self.button_background
-        if not isinstance(background, pygame.Surface):
+        if background and not isinstance(background, pygame.Surface):
             background = background()
         if pos:    
             pos = pos
@@ -951,7 +951,7 @@ class ButtonGroup(GameSprite):
         pos = [pos[0] + self.rect.left, pos[1] + self.rect.top]
         if not font:
             font = self.font
-        if not isinstance(font, Font):
+        if font and not isinstance(font, Font):
             font = font()
         if layer is None:
             layer = self.layer + 1
@@ -1169,20 +1169,24 @@ class MainMenuScene(Scene):
     def __init__(self, surface=None, manager=None):
         super().__init__(surface, manager)
         self.surface.fill(pygame.Color('white'))
-        self.buttons = []
+        self.buttons = ButtonGroup(layout=Layout(1, vertical_spacing=50), manager=self.manager)
         
     def load(self):
-        self.buttons.append(Button(None, (0,0), self.manager, "开始游戏", lambda: self.manager.load_scene("InGame")))
-        self.buttons.append(Button(None, (0,50), self.manager, "读取游戏", lambda: print("读取游戏")))
-        self.buttons.append(Button(None, (0,100), self.manager, "设置", lambda: print(3)))
-        self.buttons.append(Button(None, (0,150), self.manager, "关于", lambda: print(4)))
-        self.buttons.append(Button(None, (0,200), self.manager, "帮助", lambda: print(5)))
-        self.buttons.append(Button(None, (0,250), self.manager, "退出", lambda: sys.exit()))
-        self.title = TextSprite("Title", Font(size=200), self.manager, (200, 300))
+        self.buttons.create("开始游戏", lambda: self.manager.load_scene("InGame"))
+        self.buttons.create("读取游戏", lambda: print("读取游戏"))
+        self.buttons.create("设置", lambda: print(3))
+        self.buttons.create("关于", lambda: print(4))
+        self.buttons.create("帮助", lambda: print(5))
+        self.buttons.create("退出", self.manager.end_program)
+        self.title = TextSprite("标题", self.manager.font.copy(size=200), self.manager, (200, 300))
         self.title.set_animation([{"t":0, "alpha":0, "y":0}, {"t":10, "alpha":-255, "y":-100}])
         
     def draw(self, screen):
         super().draw(screen)
+        
+    def unload(self):
+        super().unload()
+        self.buttons.kill()
         
 class LoadingScene(Scene):
     def __init__(self, surface=None, manager=None):
@@ -1210,7 +1214,7 @@ class InGameScene(Scene):
             self.image["background"].color = [255, 255, 255, 150]
             self.image["background"].border_color = [255, 255, 0]
             self.image["background"].redraw()
-            self.image["text"].font.color = [255, 255, 255]
+            self.image["text"].font.color = [255, 208, 244]
             self.image["text"].redraw()
         def on_uh(self):
             self.image["background"].color = [255, 255, 255, 100]
@@ -1488,9 +1492,13 @@ class Manager:
     def unpause_music(self):
         self.is_music_pause = False
         pygame.mixer.music.unpause()
+        
+    def end_program(self):
+        pygame.quit()
+        sys.exit()
           
 class Game:
-    def __init__(self, window_resolution: Tuple[int, int], font: Union[str, Font], name="Game Name"):
+    def __init__(self, window_resolution: Tuple[int, int]=(1280, 720), font: Union[str, Font]=None, name="Game Name"):
         pygame.init()
         self.screen = pygame.display.set_mode(window_resolution)
         self.name = name
@@ -1523,8 +1531,7 @@ class Game:
     def process_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                self.manager.end_program()
                 
             self.manager.process_event(event)
             self.process_event(event)
